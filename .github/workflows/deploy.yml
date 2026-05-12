@@ -1,0 +1,95 @@
+name: Deploy updates.ohmbit.com
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Read store config and latest version
+      - name: Parse configuration
+        id: config
+        run: |
+          if [ -f store-config.json ]; then
+            CHROME_ID=$(jq -r '.chromeWebStoreId // empty' store-config.json)
+            EDGE_ID=$(jq -r '.edgeAddonsId // empty' store-config.json)
+            FIREFOX_ID=$(jq -r '.firefoxAmoId // empty' store-config.json)
+            echo "chrome_web_store_id=$CHROME_ID" >> $GITHUB_OUTPUT
+            echo "edge_addons_id=$EDGE_ID" >> $GITHUB_OUTPUT
+            echo "firefox_amo_id=$FIREFOX_ID" >> $GITHUB_OUTPUT
+          fi
+          if [ -f version.json ]; then
+            VERSION=$(jq -r '.version // empty' version.json)
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      # Download Chrome Web Store CRX and extract actual store version
+      - name: Download Chrome Web Store CRX
+        if: steps.config.outputs.chrome_web_store_id != '' && steps.config.outputs.version != ''
+        run: |
+          TEMP_FILE="temp-chrome.crx"
+          curl -L -o "$TEMP_FILE" \
+            "https://clients2.google.com/service/update2/crx?response=redirect&prodversion=100.0&acceptformat=crx2,crx3&x=id%3D${{ steps.config.outputs.chrome_web_store_id }}%26uc" \
+            --fail --silent --show-error || echo "Warning: Chrome Web Store CRX download failed"
+
+          if [ -f "$TEMP_FILE" ]; then
+            STORE_VERSION=$(unzip -p "$TEMP_FILE" manifest.json 2>/dev/null | jq -r '.version // empty' || true)
+            if [ -n "$STORE_VERSION" ]; then
+              mv "$TEMP_FILE" "browser-agent-${STORE_VERSION}-chrome.crx"
+              echo "Chrome CRX version: ${STORE_VERSION}"
+            else
+              mv "$TEMP_FILE" "browser-agent-${{ steps.config.outputs.version }}-chrome.crx"
+              echo "Warning: Could not extract store version, using dev version"
+            fi
+          fi
+
+      # Download Edge Add-ons CRX
+      - name: Download Edge Add-ons CRX
+        if: steps.config.outputs.edge_addons_id != '' && steps.config.outputs.version != ''
+        run: |
+          TEMP_FILE="temp-edge.crx"
+          curl -L -o "$TEMP_FILE" \
+            "https://edge.microsoft.com/extensionwebstorebase/v1/crx?response=redirect&x=id%3D${{ steps.config.outputs.edge_addons_id }}%26installsource%3Dondemand%26uc%26prodversion%3D32.0.0.0%26ping%3Dds%26acceptformat%3Dcrx2,prod" \
+            --fail --silent --show-error || echo "Warning: Edge Add-ons CRX download failed"
+
+          if [ -f "$TEMP_FILE" ]; then
+            STORE_VERSION=$(unzip -p "$TEMP_FILE" manifest.json 2>/dev/null | jq -r '.version // empty' || true)
+            if [ -n "$STORE_VERSION" ]; then
+              mv "$TEMP_FILE" "browser-agent-${STORE_VERSION}-edge.crx"
+              echo "Edge CRX version: ${STORE_VERSION}"
+            else
+              mv "$TEMP_FILE" "browser-agent-${{ steps.config.outputs.version }}-edge.crx"
+              echo "Warning: Could not extract store version, using dev version"
+            fi
+          fi
+
+      # Download Firefox AMO XPI
+      - name: Download Firefox AMO XPI
+        if: steps.config.outputs.firefox_amo_id != '' && steps.config.outputs.version != ''
+        run: |
+          API_URL="https://addons.mozilla.org/api/v5/addons/addon/${{ steps.config.outputs.firefox_amo_id }}/"
+          API_RESPONSE=$(curl -s "$API_URL")
+          XPI_URL=$(echo "$API_RESPONSE" | jq -r '.current_version.files[0].url // empty')
+          STORE_VERSION=$(echo "$API_RESPONSE" | jq -r '.current_version.version // empty')
+          if [ -n "$XPI_URL" ]; then
+            OUT_NAME="browser-agent-${STORE_VERSION:-${{ steps.config.outputs.version }}}-firefox.xpi"
+            curl -L -o "$OUT_NAME" "$XPI_URL" \
+              --fail --silent --show-error || echo "Warning: Firefox AMO XPI download failed"
+            echo "Firefox XPI version: ${STORE_VERSION}"
+          fi
+
+      # Build static site and deploy
+      - run: node build.mjs
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

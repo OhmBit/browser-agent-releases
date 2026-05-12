@@ -1,0 +1,11 @@
+name = "updates-ohmbit-com"
+compatibility_date = "2026-01-01"
+workers_dev = false
+
+[assets]
+directory = "./build"
+not_found_handling = "single-page-application"
+
+[[routes]]
+pattern = "updates.ohmbit.com"
+custom_domain = true
