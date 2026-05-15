@@ -184,9 +184,9 @@ writeFileSync(
   </style>
 </head>
 <body>
-  <h1>OhmBit Browser Agent <span class="version">v${escapeHtml(ver)}</span></h1>
+  <h1>OhmBit Browser Agent</h1>
 ${storeHtml ? `  <h2>Store Downloads</h2>\n  <ul>\n${storeHtml}\n  </ul>` : ''}
-  <h2>Developer Downloads</h2>
+  <h2>Developer Downloads <span class="version">v${escapeHtml(ver)}</span></h2>
   <ul>
 ${devHtml || '    <li>No downloads available yet.</li>'}
   </ul>
