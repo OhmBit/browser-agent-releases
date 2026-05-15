@@ -1,8 +1,8 @@
 {
-  "version": "0.1.4",
+  "version": "0.1.5",
   "targets": [
     "chromium",
     "firefox"
   ],
-  "publishedAt": "2026-05-15T05:49:07.210Z"
+  "publishedAt": "2026-05-15T18:00:00.687Z"
 }
