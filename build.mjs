@@ -52,12 +52,6 @@ const escapeHtml = (s) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-/** Extract semver version from artifact filename (e.g. "browser-agent-0.1.3-chrome.crx" → "0.1.3"). */
-const extractVersion = (filename) => {
-  const m = filename.match(/^browser-agent-(\d+\.\d+\.\d+)-/);
-  return m ? m[1] : '';
-};
-
 if (!currentVersion) {
   writeFileSync(
     resolve(target, 'index.html'),
@@ -97,7 +91,6 @@ if (storeConfig.chromeWebStoreId) {
   if (crxFile) {
     storeEntries.push({
       label: 'Chrome Web Store',
-      version: extractVersion(crxFile),
       url: `https://chromewebstore.google.com/detail/${storeConfig.chromeWebStoreId}`,
       file: `/${encodeURIComponent(crxFile)}`,
     });
@@ -111,7 +104,6 @@ if (storeConfig.edgeAddonsId) {
   if (crxFile) {
     storeEntries.push({
       label: 'Edge Add-ons',
-      version: extractVersion(crxFile),
       url: `https://microsoftedge.microsoft.com/addons/detail/${storeConfig.edgeAddonsId}`,
       file: `/${encodeURIComponent(crxFile)}`,
     });
@@ -125,7 +117,6 @@ if (storeConfig.firefoxAmoId) {
   if (xpiFile) {
     storeEntries.push({
       label: 'Firefox AMO',
-      version: extractVersion(xpiFile),
       url: `https://addons.mozilla.org/addon/${storeConfig.firefoxAmoId}/`,
       file: `/${encodeURIComponent(xpiFile)}`,
     });
@@ -135,8 +126,7 @@ if (storeConfig.firefoxAmoId) {
 const storeHtml = storeEntries
   .map(
     (e) => `    <li>
-      <strong>${escapeHtml(e.label)}</strong>
-      <span class="version">v${escapeHtml(e.version)}</span>
+      <span class="item-label">${escapeHtml(e.label)}</span>
       <a href="${escapeHtml(e.url)}">Store Page</a>
       <a href="${e.file}">Download</a>
     </li>`,
@@ -153,10 +143,10 @@ const devHtml = devFiles
   .map((f) => {
     const isChromium = f.includes('chromium');
     const label = isChromium
-      ? `<strong>Chromium</strong><small>Chrome / Edge</small>`
-      : '<strong>Firefox</strong>';
+      ? `Chromium <small>Chrome / Edge</small>`
+      : 'Firefox';
     return `    <li>
-      <span class="browser-label">${label}</span>
+      <span class="item-label">${label}</span>
       <a href="/${encodeURIComponent(f)}">Download .zip</a>
     </li>`;
   })
@@ -174,18 +164,19 @@ writeFileSync(
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
     h1 { font-size: 1.5rem; }
     h2 { font-size: 1.2rem; margin-top: 1.5rem; }
-    a { color: #2563eb; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
     ul { list-style: none; padding: 0; }
     li { padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb; display: flex; gap: 1rem; align-items: center; }
-    .browser-label { display: flex; flex-direction: column; min-width: 5rem; }
-    .browser-label small { color: #6b7280; font-size: 0.75rem; font-weight: normal; }
+    .item-label { min-width: 12rem; }
+    .item-label small { color: #6b7280; font-size: 0.75rem; margin-left: 0.25rem; }
     .version { color: #6b7280; font-size: 0.875rem; margin-left: 0.5rem; }
     footer { margin-top: 2rem; font-size: 0.875rem; color: #9ca3af; }
   </style>
 </head>
 <body>
   <h1>OhmBit Browser Agent</h1>
-${storeHtml ? `  <h2>Store Downloads</h2>\n  <ul>\n${storeHtml}\n  </ul>` : ''}
+${storeHtml ? `  <h2>Store Downloads <span class="version">v${escapeHtml(ver)}</span></h2>\n  <ul>\n${storeHtml}\n  </ul>` : ''}
   <h2>Developer Downloads <span class="version">v${escapeHtml(ver)}</span></h2>
   <ul>
 ${devHtml || '    <li>No downloads available yet.</li>'}
