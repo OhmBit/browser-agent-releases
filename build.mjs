@@ -52,6 +52,12 @@ const escapeHtml = (s) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
+/** Extract semver version from artifact filename (e.g. "browser-agent-0.1.3-chrome.crx" → "0.1.3"). */
+const extractVersion = (filename) => {
+  const m = filename.match(/^browser-agent-(\d+\.\d+\.\d+)-/);
+  return m ? m[1] : '';
+};
+
 if (!currentVersion) {
   writeFileSync(
     resolve(target, 'index.html'),
@@ -91,6 +97,7 @@ if (storeConfig.chromeWebStoreId) {
   if (crxFile) {
     storeEntries.push({
       label: 'Chrome Web Store',
+      version: extractVersion(crxFile),
       url: `https://chromewebstore.google.com/detail/${storeConfig.chromeWebStoreId}`,
       file: `/${encodeURIComponent(crxFile)}`,
     });
@@ -104,6 +111,7 @@ if (storeConfig.edgeAddonsId) {
   if (crxFile) {
     storeEntries.push({
       label: 'Edge Add-ons',
+      version: extractVersion(crxFile),
       url: `https://microsoftedge.microsoft.com/addons/detail/${storeConfig.edgeAddonsId}`,
       file: `/${encodeURIComponent(crxFile)}`,
     });
@@ -117,6 +125,7 @@ if (storeConfig.firefoxAmoId) {
   if (xpiFile) {
     storeEntries.push({
       label: 'Firefox AMO',
+      version: extractVersion(xpiFile),
       url: `https://addons.mozilla.org/addon/${storeConfig.firefoxAmoId}/`,
       file: `/${encodeURIComponent(xpiFile)}`,
     });
@@ -127,6 +136,7 @@ const storeHtml = storeEntries
   .map(
     (e) => `    <li>
       <span class="item-label">${escapeHtml(e.label)}</span>
+      <span class="version">v${escapeHtml(e.version)}</span>
       <a href="${escapeHtml(e.url)}">Store Page</a>
       <a href="${e.file}">Download</a>
     </li>`,
@@ -176,7 +186,7 @@ writeFileSync(
 </head>
 <body>
   <h1>OhmBit Browser Agent</h1>
-${storeHtml ? `  <h2>Store Downloads <span class="version">v${escapeHtml(ver)}</span></h2>\n  <ul>\n${storeHtml}\n  </ul>` : ''}
+${storeHtml ? `  <h2>Store Downloads</h2>\n  <ul>\n${storeHtml}\n  </ul>` : ''}
   <h2>Developer Downloads <span class="version">v${escapeHtml(ver)}</span></h2>
   <ul>
 ${devHtml || '    <li>No downloads available yet.</li>'}
